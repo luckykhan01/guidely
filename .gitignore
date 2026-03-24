@@ -1,4 +1,6 @@
-# Binaries for programs and plugins
+# =========================
+# Go (Backend)
+# =========================
 *.exe
 *.exe~
 *.dll
@@ -6,25 +8,20 @@
 *.dylib
 test_build
 tmp_build
-
-# Test binary, built with `go test -c`
 *.test
-
-# Output of the go coverage tool, specifically when used with LiteIDE
 *.out
-
-# Dependency directories (remove the comment below to include it)
-# vendor/
-
-# Go workspace file
 go.work
 go.work.sum
 
+# =========================
 # Environment variables
+# =========================
 .env
 .env.*
 
+# =========================
 # OS files
+# =========================
 .DS_Store
 .DS_Store?
 ._*
@@ -32,3 +29,30 @@ go.work.sum
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# =========================
+# React Native / Expo (Frontend)
+# =========================
+node_modules/
+.expo/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Native build directories (if you ever prebuild)
+/mobile/android/
+/mobile/ios/
+
+# Keystores and provisioning profiles
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# IDEs
+.idea/
+.vscode/
+*.iml
