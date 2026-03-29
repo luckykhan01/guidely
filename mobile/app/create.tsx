@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { setCurrentTrip, addMyTrip } from '../store/tripStore';
 
 type Step = 'Where' | 'When' | 'Preferences';
 
 const TRENDING = [
-  { name: 'Tokyo', country: 'Japan', flag: '🇯🇵' },
-  { name: 'Paris', country: 'France', flag: '🇫🇷' },
-  { name: 'Rome', country: 'Italy', flag: '🇮🇹' },
-  { name: 'Bangkok', country: 'Thailand', flag: '🇹🇭' },
-  { name: 'London', country: 'United Kingdom', flag: '🇬🇧' },
+  { name: 'Almaty', country: 'Kazakhstan', flag: '🇰🇿' },
+  { name: 'Astana', country: 'Kazakhstan', flag: '🇰🇿' },
+  { name: 'Shymkent', country: 'Kazakhstan', flag: '🇰🇿' },
+  { name: 'Aktau', country: 'Kazakhstan', flag: '🇰🇿' },
+  { name: 'Atyrau', country: 'Kazakhstan', flag: '🇰🇿' },
 ];
 
 const PREFS = [
@@ -32,28 +33,75 @@ export default function CreateTrip() {
   const [city, setCity] = useState<{name: string, country: string, flag: string} | null>(null);
   const [days, setDays] = useState<number>(4);
   const [preferences, setPreferences] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleGenerateTrip = async (payload: any) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('http://192.168.0.174:8080/api/generate-trip', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Store the trip data in the module-level store
+      // instead of passing it through URL params (which crashes the nav context)
+      setCurrentTrip(data);
+      
+      const totalDays = data.days?.length || 1;
+      const totalSpots = data.days?.reduce((acc: number, d: any) => acc + (d.places?.length || 0), 0) || 0;
+      
+      const cityLower = (city?.name || 'Unknown').toLowerCase();
+      let cityImage = require('../assets/images/almaty.jpg'); // default fallback
+      if (cityLower === 'astana') cityImage = require('../assets/images/astana.jpg');
+      if (cityLower === 'shymkent') cityImage = require('../assets/images/shymkent.jpg');
+      
+      // If the AI returned a real image for the first place, use it as cover
+      if (data.days?.[0]?.places?.[0]?.imageUrl) {
+        cityImage = { uri: data.days[0].places[0].imageUrl };
+      }
+
+      addMyTrip({
+        id: Date.now(),
+        title: data.tripTitle || 'Generated Trip',
+        duration: `${totalDays} Day${totalDays > 1 ? 's' : ''}`,
+        spots: `${totalSpots} Spots`,
+        image: cityImage,
+        tripData: data,
+      });
+
+      router.push('/trip');
+    } catch (error) {
+      console.error(error);
+      alert('Failed to contact AI backend. Ensure the Go server runs on port 8080 and GEMINI_API_KEY is valid.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleNext = () => {
     if (activeStep === 'Where') {
       if (!city) {
-        // Default to Rome if empty to maintain flow experience gracefully
         setCity(TRENDING[2]); 
       }
       setActiveStep('When');
     } else if (activeStep === 'When') {
       setActiveStep('Preferences');
     } else {
-      // Preferences -> Final Step
       const payload = {
-        city: city?.name,
-        durationDays: days,
-        preferences: preferences.length > 0 ? preferences : []
+        destination_city: city?.name || 'Rome',
+        duration_days: days,
+        preferences_array: preferences.length > 0 ? preferences : []
       };
-      console.log('Final Payload for Backend POST Request:');
-      console.log(JSON.stringify(payload, null, 2));
-      
-      alert('Trip Request Logged! Check your metro console.');
-      router.navigate('/');
+      handleGenerateTrip(payload);
     }
   };
 
@@ -272,15 +320,13 @@ export default function CreateTrip() {
                   onPress={() => {
                      setPreferences(['Surprise me']);
                      const payload = {
-                       city: city?.name,
-                       durationDays: days,
-                       preferences: ['Surprise me']
+                       destination_city: city?.name || 'Rome',
+                       duration_days: days,
+                       preferences_array: ['Surprise me']
                      };
-                     console.log('--- SURPRISE ME INITIATED ---');
-                     console.log(JSON.stringify(payload, null, 2));
-                     alert('Surprise Trip Requested! Check local metro console.');
-                     router.navigate('/');
+                     handleGenerateTrip(payload);
                   }}
+                  disabled={isLoading}
                 >
                   <Text className="text-blue-400 mr-2 text-xl">✨</Text>
                   <Text className="text-blue-500 font-bold text-[16px]">Skip, Surprise me</Text>
@@ -320,6 +366,15 @@ export default function CreateTrip() {
         </View>
 
       </SafeAreaView>
+
+      {/* Loading Overlay */}
+      {isLoading && (
+        <View className="absolute inset-0 bg-white/80 items-center justify-center z-50">
+          <ActivityIndicator size="large" color="#0ea5e9" />
+          <Text className="mt-4 text-[17px] font-bold text-slate-700">AI is crafting your trip...</Text>
+          <Text className="mt-1 text-sm text-slate-500">This might take a few seconds</Text>
+        </View>
+      )}
     </LinearGradient>
   );
 }

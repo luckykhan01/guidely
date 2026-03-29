@@ -49,6 +49,12 @@ export default function RootLayout() {
           tabBarIcon: ({ color }) => <FontAwesome name="bookmark" size={20} color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="trip"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
